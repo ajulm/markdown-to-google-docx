@@ -109,10 +109,13 @@
     display: grid;
     grid-template-columns: 1fr 1fr;
     gap: 28px;
-    min-height: 60vh;
+    /* Bound the panes to the viewport so each pane scrolls internally
+       instead of growing the whole page. */
+    height: calc(100vh - 280px);
+    min-height: 320px;
   }
   @media (max-width: 880px) {
-    .panes { grid-template-columns: 1fr; }
+    .panes { grid-template-columns: 1fr; height: auto; }
     .app { padding: 28px 20px 48px; }
   }
   .pane {
@@ -155,12 +158,14 @@
     line-height: 1.65;
     background: transparent;
     color: var(--ink);
-    min-height: 60vh;
+    min-height: 0;
+    overflow: auto;
   }
   textarea#input::placeholder { color: var(--muted); font-style: italic; }
 
   #preview {
     flex: 1;
+    min-height: 0;
     padding: 28px 32px;
     overflow: auto;
     color: #1f2328;
@@ -352,10 +357,15 @@ def compute_payout(seller, period):
     const md = input.value;
     const dirty = marked.parse(md);
     const clean = DOMPurify.sanitize(dirty, { USE_PROFILES: { html: true } });
+
+    // Preserve the preview's scroll position — replacing innerHTML resets
+    // scrollTop to 0, which yanks the pane back to the top on every keystroke.
+    const prevScroll = preview.scrollTop;
     preview.innerHTML = clean;
 
     // Syntax-highlight code blocks (adds .hljs-* class spans, colored by theme CSS)
     preview.querySelectorAll('pre code').forEach(el => hljs.highlightElement(el));
+    preview.scrollTop = prevScroll;
 
     charCount.textContent = md.length + ' chars';
     const words = md.trim() ? md.trim().split(/\s+/).length : 0;
@@ -470,11 +480,12 @@ def compute_payout(seller, period):
       const cellStyle = [
         `background:${HEADER_BG}`,
         `border:${BORDER}`,
-        'padding:12px 16px',
+        'padding:8px 12px',
         `font-family:${MONO}`,
-        'font-size:10pt',
+        'font-size:6pt',
         'color:#1f2328',
         'line-height:1.1',
+        'white-space:pre',
       ].join(';');
 
       const table = document.createElement('table');
