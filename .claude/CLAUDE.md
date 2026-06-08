@@ -1,7 +1,8 @@
 # Project: Markdown → Google Docs
 
 Single-file browser tool. No build step, no dependencies to install — all
-libs load from CDN. The whole app is `markdown-to-gdocs.html`.
+libs load from CDN. The whole app is `index.html` (served via GitHub Pages
+at https://ajulm.github.io/markdown-to-google-docx/).
 
 ## Constraints that drive the design
 

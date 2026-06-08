@@ -29,7 +29,9 @@ preview and inlining every style, so the paste survives.
 
 ## Usage
 
-Open `markdown-to-gdocs.html` in a browser. That's it.
+**Live:** https://ajulm.github.io/markdown-to-google-docx/
+
+Or open `index.html` in a browser. That's it.
 
 1. Type or paste Markdown in the left pane.
 2. Check the live preview on the right.
