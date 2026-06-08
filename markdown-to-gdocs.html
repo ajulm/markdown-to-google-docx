@@ -1,0 +1,642 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Markdown → Google Docs</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Source+Serif+4:opsz,wght@8..60,400;8..60,600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+<script src="https://cdnjs.cloudflare.com/ajax/libs/marked/12.0.2/marked.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/dompurify/3.0.11/purify.min.js"></script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/github.min.css" />
+<script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+<style>
+  :root {
+    --paper:        #ffffff;
+    --paper-deep:   #ffffff;
+    --ink:          #1E1A17;
+    --ink-soft:     #4A4239;
+    --muted:        #8A7F71;
+    --rule:         #D9CFBE;
+    --accent:       #8B3A1F;
+    --accent-soft:  #B7654A;
+    --highlight:    #ffffff;
+    --shadow:       0 1px 0 rgba(30,26,23,.04), 0 12px 32px -16px rgba(30,26,23,.16);
+  }
+
+  * { box-sizing: border-box; }
+
+  html, body {
+    margin: 0;
+    padding: 0;
+    background: var(--paper);
+    color: var(--ink);
+    font-family: 'Source Serif 4', Georgia, serif;
+    font-size: 16px;
+    line-height: 1.55;
+    min-height: 100vh;
+    background-image:
+      radial-gradient(circle at 20% 10%, rgba(139,58,31,.04), transparent 40%),
+      radial-gradient(circle at 80% 90%, rgba(139,58,31,.05), transparent 45%);
+  }
+
+  .app {
+    max-width: 1280px;
+    margin: 0 auto;
+    padding: 48px 40px 64px;
+  }
+
+  /* ---- Header ---- */
+  header {
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: 32px;
+    padding-bottom: 28px;
+    border-bottom: 1px solid var(--rule);
+    margin-bottom: 32px;
+  }
+  .brand h1 {
+    font-family: 'Instrument Serif', serif;
+    font-weight: 400;
+    font-size: clamp(40px, 5vw, 64px);
+    line-height: 1;
+    letter-spacing: -0.01em;
+    margin: 0;
+  }
+  .brand h1 em {
+    font-style: italic;
+    color: var(--accent);
+  }
+  .brand .tag {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-top: 10px;
+  }
+  .toolbar {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+  }
+  button {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    padding: 11px 16px;
+    border: 1px solid var(--ink);
+    background: transparent;
+    color: var(--ink);
+    cursor: pointer;
+    transition: background .18s ease, color .18s ease, transform .12s ease;
+  }
+  button:hover { background: var(--ink); color: var(--paper); }
+  button:active { transform: translateY(1px); }
+  button.primary {
+    background: var(--ink);
+    color: var(--paper);
+  }
+  button.primary:hover { background: var(--accent); border-color: var(--accent); }
+  button.success { background: var(--accent); border-color: var(--accent); color: var(--paper); }
+
+  /* ---- Panes ---- */
+  .panes {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 28px;
+    min-height: 60vh;
+  }
+  @media (max-width: 880px) {
+    .panes { grid-template-columns: 1fr; }
+    .app { padding: 28px 20px 48px; }
+  }
+  .pane {
+    background: #ffffff;
+    border: 1px solid var(--rule);
+    box-shadow: var(--shadow);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+  .pane-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 14px 18px;
+    border-bottom: 1px solid var(--rule);
+    background: var(--paper-deep);
+  }
+  .pane-head .label {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: var(--ink-soft);
+  }
+  .pane-head .meta {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    color: var(--muted);
+  }
+  textarea#input {
+    flex: 1;
+    width: 100%;
+    border: 0;
+    outline: 0;
+    resize: none;
+    padding: 22px 24px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 13.5px;
+    line-height: 1.65;
+    background: transparent;
+    color: var(--ink);
+    min-height: 60vh;
+  }
+  textarea#input::placeholder { color: var(--muted); font-style: italic; }
+
+  #preview {
+    flex: 1;
+    padding: 28px 32px;
+    overflow: auto;
+    color: #1f2328;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Helvetica Neue", Arial, sans-serif;
+    font-size: 14px;
+    line-height: 1.6;
+  }
+  #preview h1, #preview h2, #preview h3, #preview h4, #preview h5, #preview h6 {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Helvetica Neue", Arial, sans-serif;
+    font-weight: 600;
+    line-height: 1.25;
+    margin: 1.4em 0 .55em;
+    color: #1f2328;
+  }
+  #preview h1 { font-size: 26px; padding-bottom: .3em; border-bottom: 1px solid #d0d7de; }
+  #preview h2 { font-size: 20px; padding-bottom: .3em; border-bottom: 1px solid #d0d7de; }
+  #preview h3 { font-size: 17px; }
+  #preview h4 { font-size: 15px; }
+  #preview h1:first-child, #preview h2:first-child { margin-top: 0; }
+  #preview p { margin: 0 0 1em; }
+  #preview a { color: #0969da; text-decoration: underline; text-underline-offset: 2px; }
+  #preview code {
+    font-family: ui-monospace, SFMono-Regular, 'SF Mono', Menlo, Consolas, 'Liberation Mono', monospace;
+    font-size: 85%;
+    background: #f6f8fa;
+    padding: .2em .4em;
+    border-radius: 6px;
+  }
+  #preview pre {
+    font-family: ui-monospace, SFMono-Regular, 'SF Mono', Menlo, Consolas, 'Liberation Mono', monospace;
+    background: #f6f8fa;
+    color: #1f2328;
+    padding: 16px;
+    border-radius: 6px;
+    overflow-x: auto;
+    font-size: 85%;
+    line-height: 1.45;
+    margin: 1em 0;
+  }
+  #preview pre code { background: transparent; padding: 0; font-size: 100%; border-radius: 0; }
+  #preview blockquote {
+    margin: 1em 0;
+    padding: 0 1em;
+    border-left: .25em solid #d0d7de;
+    color: #59636e;
+  }
+  #preview ul, #preview ol { padding-left: 2em; margin: 0 0 1em; }
+  #preview li { margin: .25em 0; }
+  #preview table {
+    border-collapse: collapse;
+    margin: 1em 0;
+    font-size: 14px;
+    border: 1px solid #d0d7de;
+  }
+  #preview th, #preview td {
+    border: 1px solid #d0d7de;
+    padding: 6px 13px;
+    vertical-align: top;
+    text-align: left;
+  }
+  #preview th { background: #f6f8fa; font-weight: 600; }
+  #preview tbody tr:nth-child(even) { background: #f6f8fa; }
+  #preview hr { border: 0; border-top: 1px solid #d0d7de; margin: 1.5em 0; }
+  #preview img { max-width: 100%; height: auto; }
+
+  /* ---- Status / footer ---- */
+  .status {
+    margin-top: 22px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    color: var(--muted);
+    letter-spacing: 0.06em;
+  }
+  .status .hint em { font-style: italic; color: var(--ink-soft); }
+
+  /* fade in */
+  .app { animation: rise .5s ease both; }
+  @keyframes rise {
+    from { opacity: 0; transform: translateY(8px); }
+    to   { opacity: 1; transform: none; }
+  }
+</style>
+</head>
+<body>
+  <div class="app">
+    <header>
+      <div class="brand">
+        <h1>Markdown <em>→</em> Google Docs</h1>
+        <div class="tag">paste markdown · copy · paste into docs</div>
+      </div>
+      <div class="toolbar">
+        <button id="loadExample" title="Load an example">Example</button>
+        <button id="clearBtn" title="Clear input">Clear</button>
+        <button id="copyBtn" class="primary" title="Copy formatted output for Google Docs">Copy for Docs</button>
+      </div>
+    </header>
+
+    <section class="panes">
+      <div class="pane">
+        <div class="pane-head">
+          <span class="label">Markdown</span>
+          <span class="meta" id="charCount">0 chars</span>
+        </div>
+        <textarea id="input" spellcheck="false" placeholder="Type or paste Markdown here…
+
+# Like this
+**bold**, *italic*, [links](https://example.com), `code`,
+- lists
+- and tables
+
+Then hit ‘Copy for Docs’ and paste into Google Docs."></textarea>
+      </div>
+
+      <div class="pane">
+        <div class="pane-head">
+          <span class="label">Preview</span>
+          <span class="meta" id="wordCount">0 words</span>
+        </div>
+        <div id="preview"></div>
+      </div>
+    </section>
+
+    <div class="status">
+      <div class="hint">Tip: <em>paste with Cmd/Ctrl+V</em> into Google Docs to keep formatting.</div>
+      <div id="statusMsg">Ready.</div>
+    </div>
+  </div>
+
+<script>
+  // Configure marked: GFM, line breaks, no mangling
+  marked.setOptions({
+    gfm: true,
+    breaks: false,
+    headerIds: false,
+    mangle: false,
+  });
+
+  const input    = document.getElementById('input');
+  const preview  = document.getElementById('preview');
+  const copyBtn  = document.getElementById('copyBtn');
+  const clearBtn = document.getElementById('clearBtn');
+  const exampleBtn = document.getElementById('loadExample');
+  const charCount = document.getElementById('charCount');
+  const wordCount = document.getElementById('wordCount');
+  const statusMsg = document.getElementById('statusMsg');
+
+  const EXAMPLE = `# Quarterly Update
+
+A short *editorial* on what shipped, what slipped, and what's next.
+
+## Highlights
+
+- **Payouts v1.2** — BankAccount slice merged, NPI integration in review
+- **SMS credits** — English 160ch / Nepali 70ch billing live
+- **Docs** — \`suqo-wiki\` auto-sync running nightly
+
+> Quality is never an accident; it is always the result of intelligent effort.
+
+## Numbers
+
+| Metric        | Last Qtr | This Qtr | Δ      |
+|---------------|---------:|---------:|-------:|
+| Active users  |      120 |      184 |  +53%  |
+| Revenue (NPR) |  240,000 |  410,000 |  +71%  |
+| Payouts       |        — |       38 |    —   |
+
+## Code Snippet
+
+\`\`\`python
+def compute_payout(seller, period):
+    gross = seller.collected_for(period)
+    fees  = gross * Decimal("0.025")
+    return gross - fees
+\`\`\`
+
+### Next Up
+
+1. Withdrawal request UI
+2. NCHL NPI debit authorization flow
+3. Admin-facing reconciliation report
+
+[Read the full doc →](https://example.com/q3)
+`;
+
+  function render() {
+    const md = input.value;
+    const dirty = marked.parse(md);
+    const clean = DOMPurify.sanitize(dirty, { USE_PROFILES: { html: true } });
+    preview.innerHTML = clean;
+
+    // Syntax-highlight code blocks (adds .hljs-* class spans, colored by theme CSS)
+    preview.querySelectorAll('pre code').forEach(el => hljs.highlightElement(el));
+
+    charCount.textContent = md.length + ' chars';
+    const words = md.trim() ? md.trim().split(/\s+/).length : 0;
+    wordCount.textContent = words + ' words';
+  }
+
+  input.addEventListener('input', render);
+
+  clearBtn.addEventListener('click', () => {
+    input.value = '';
+    render();
+    setStatus('Cleared.');
+    input.focus();
+  });
+
+  exampleBtn.addEventListener('click', () => {
+    input.value = EXAMPLE;
+    render();
+    setStatus('Example loaded.');
+  });
+
+  function setStatus(msg) {
+    statusMsg.textContent = msg;
+  }
+
+  // -- Build a Docs-friendly HTML clone ----
+  // Google Docs strips CSS classes and stylesheet rules, but it DOES respect:
+  //   - inline `style="..."` on most elements
+  //   - the `border` attribute on <table>
+  //   - font-family inline on <pre>/<code>
+  // So we clone the preview, walk it, and inline GitHub-flavored styles.
+  // Note: Docs does NOT preserve border-radius — inline code "pills" land as
+  // gray rectangles. Background color + monospace font still survives.
+  function escHtml(s) {
+    return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  }
+
+  // Serialize a highlighted <code> subtree to Docs-safe HTML:
+  //   - keep hljs colors as inline <span style="color:…"> (Docs strips classes,
+  //     but preserves inline color), so highlighting survives the paste
+  //   - spaces -> nbsp (Docs collapses ordinary space runs, killing indentation)
+  //   - newlines -> <br> (Docs would otherwise split each line into its own
+  //     paragraph + outline entry)
+  function serializeCode(node) {
+    let out = '';
+    node.childNodes.forEach(ch => {
+      if (ch.nodeType === 3) { // text
+        out += escHtml(ch.nodeValue).replace(/ /g, ' ').replace(/\n/g, '<br>');
+      } else if (ch.nodeType === 1) { // element (hljs span)
+        const color = ch.style.color;
+        const inner = serializeCode(ch);
+        out += color ? `<span style="color:${color}">${inner}</span>` : inner;
+      }
+    });
+    return out;
+  }
+
+  function buildDocsHtml() {
+    // Pin each hljs span's color inline on the LIVE tree before cloning —
+    // getComputedStyle only resolves theme-CSS colors on in-DOM nodes.
+    preview.querySelectorAll('pre code span').forEach(s => {
+      s.style.color = getComputedStyle(s).color;
+    });
+
+    const root = preview.cloneNode(true);
+
+    const MONO = "ui-monospace, SFMono-Regular, 'SF Mono', Menlo, Consolas, monospace";
+    const BORDER = '1px solid #d0d7de';
+    const HEADER_BG = '#f6f8fa';
+
+    // Tables: bordered, header shaded, zebra rows
+    root.querySelectorAll('table').forEach(t => {
+      t.setAttribute('border', '1');
+      t.style.borderCollapse = 'collapse';
+      t.style.border = BORDER;
+      t.style.margin = '8px 0';
+    });
+    root.querySelectorAll('th, td').forEach(c => {
+      c.style.border = BORDER;
+      c.style.padding = '6px 13px';
+      c.style.verticalAlign = 'top';
+    });
+    root.querySelectorAll('th').forEach(c => {
+      c.style.background = HEADER_BG;
+      c.style.fontWeight = '600';
+    });
+    // Zebra stripes — apply background to even-indexed body rows inline,
+    // since Docs ignores :nth-child rules.
+    root.querySelectorAll('tbody').forEach(tbody => {
+      const rows = tbody.querySelectorAll('tr');
+      rows.forEach((tr, i) => {
+        if (i % 2 === 1) tr.style.background = HEADER_BG;
+      });
+    });
+
+    // Code blocks — wrap in a 1x1 table.
+    // Docs paints a paragraph `background` only behind text runs (character
+    // highlight), NOT the full block width, and each <br> line carries
+    // line-leading the highlight skips — so a styled <pre> lands as broken
+    // gray bands with white gaps between lines. A TABLE CELL is the one
+    // construct Docs fills edge-to-edge with a uniform background on paste.
+    // serializeCode keeps hljs colors inline, spaces -> nbsp (indentation),
+    // \n -> <br>; blank lines get one nbsp so the cell stays one block.
+    root.querySelectorAll('pre').forEach(p => {
+      const codeEl = p.querySelector('code') || p;
+      const code = serializeCode(codeEl)
+        .replace(/(<br>)+$/, '')
+        .split('<br>')
+        .map(line => line.trim() === '' ? '\u00A0' : line)
+        .join('<br>');
+
+      const cellStyle = [
+        `background:${HEADER_BG}`,
+        `border:${BORDER}`,
+        'padding:12px 16px',
+        `font-family:${MONO}`,
+        'font-size:10pt',
+        'color:#1f2328',
+        'line-height:1.45',
+      ].join(';');
+
+      const table = document.createElement('table');
+      table.setAttribute('border', '0');
+      table.setAttribute('cellspacing', '0');
+      table.style.borderCollapse = 'collapse';
+      table.style.width = '100%';
+      table.style.margin = '8px 0';
+      table.innerHTML =
+        `<tbody><tr><td style="${cellStyle}">${code}</td></tr></tbody>`;
+      p.replaceWith(table);
+    });
+
+    // Inline code (not inside <pre>) — gray pill
+    root.querySelectorAll('code').forEach(c => {
+      if (c.parentElement && c.parentElement.tagName === 'PRE') return;
+      c.style.fontFamily = MONO;
+      c.style.background = HEADER_BG;
+      c.style.padding = '.2em .4em';
+      c.style.borderRadius = '6px';
+      c.style.fontSize = '85%';
+    });
+
+    // Blockquotes
+    root.querySelectorAll('blockquote').forEach(b => {
+      b.style.borderLeft = '.25em solid #d0d7de';
+      b.style.padding = '0 1em';
+      b.style.margin = '8px 0';
+      b.style.color = '#59636e';
+    });
+
+    // Links
+    root.querySelectorAll('a').forEach(a => {
+      a.style.color = '#0969da';
+      a.style.textDecoration = 'underline';
+    });
+
+    // Horizontal rule
+    root.querySelectorAll('hr').forEach(h => {
+      h.style.border = '0';
+      h.style.borderTop = BORDER;
+      h.style.margin = '12px 0';
+    });
+
+    // Headings: sans-serif, semibold, with EXPLICIT point sizes.
+    // Docs' paste importer infers heading level from font-size contrast. With
+    // no sizes set, headings inherit the wrapper's 11pt — same as body — so
+    // Docs guesses and dumps every short/bold paragraph into the outline.
+    // Distinct sizes give it an unambiguous signal: big = heading, 11pt = body.
+    const H_SIZE = { H1: '22pt', H2: '17pt', H3: '14pt', H4: '12pt', H5: '11pt', H6: '11pt' };
+    root.querySelectorAll('h1, h2, h3, h4, h5, h6').forEach(h => {
+      h.style.fontFamily = 'Arial, sans-serif';
+      h.style.fontWeight = '600';
+      h.style.color = '#1f2328';
+      h.style.fontSize = H_SIZE[h.tagName] || '11pt';
+    });
+
+    // Body text: pin to 11pt so Docs classifies it as Normal, not a heading.
+    root.querySelectorAll('p, li, td, th, blockquote').forEach(el => {
+      el.style.fontSize = '11pt';
+    });
+
+    return root.innerHTML;
+  }
+
+  // -- Copy as rich text (HTML on the clipboard) ----
+  // Strategy: intercept the browser's native 'copy' event and write
+  // text/html + text/plain directly into clipboardData. This works on
+  // file://, requires no permissions, and is supported everywhere.
+  // Falls back to navigator.clipboard.write only if execCommand fails.
+  async function copyAsRichText() {
+    const html  = buildDocsHtml();
+    const plain = input.value;
+
+    const wrapped =
+      '<meta charset="utf-8">' +
+      '<div style="font-family: Arial, sans-serif; font-size: 11pt; color: #000;">' +
+      html +
+      '</div>';
+
+    // --- Primary: copy-event handler (most reliable) ---
+    const handler = (e) => {
+      e.preventDefault();
+      e.clipboardData.setData('text/html',  wrapped);
+      e.clipboardData.setData('text/plain', plain);
+    };
+
+    let ok = false;
+    document.addEventListener('copy', handler);
+    try {
+      // execCommand('copy') needs a non-empty selection in some browsers.
+      // Create one in a throwaway element.
+      const stash = document.createElement('div');
+      stash.textContent = '\u200B'; // zero-width char
+      stash.style.position = 'fixed';
+      stash.style.left = '-9999px';
+      stash.style.top = '0';
+      document.body.appendChild(stash);
+
+      const range = document.createRange();
+      range.selectNodeContents(stash);
+      const sel = window.getSelection();
+      sel.removeAllRanges();
+      sel.addRange(range);
+
+      ok = document.execCommand('copy');
+      sel.removeAllRanges();
+      document.body.removeChild(stash);
+    } catch (err) {
+      console.warn('execCommand copy failed:', err);
+    } finally {
+      document.removeEventListener('copy', handler);
+    }
+
+    // --- Fallback: async Clipboard API ---
+    if (!ok) {
+      try {
+        if (navigator.clipboard && window.ClipboardItem) {
+          const item = new ClipboardItem({
+            'text/html':  new Blob([wrapped], { type: 'text/html' }),
+            'text/plain': new Blob([plain],   { type: 'text/plain' }),
+          });
+          await navigator.clipboard.write([item]);
+          ok = true;
+        }
+      } catch (err) {
+        console.error('Clipboard API failed:', err);
+        setStatus('Copy failed: ' + err.message);
+        return;
+      }
+    }
+
+    if (ok) {
+      flashCopySuccess();
+    } else {
+      setStatus('Copy failed. Try a different browser or check permissions.');
+    }
+  }
+
+  function flashCopySuccess() {
+    copyBtn.classList.add('success');
+    copyBtn.textContent = 'Copied — paste into Docs';
+    setStatus('Copied as rich text.');
+    setTimeout(() => {
+      copyBtn.classList.remove('success');
+      copyBtn.textContent = 'Copy for Docs';
+    }, 2200);
+  }
+
+  copyBtn.addEventListener('click', copyAsRichText);
+
+  // Keyboard shortcut: Cmd/Ctrl + Enter
+  input.addEventListener('keydown', (e) => {
+    if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') {
+      e.preventDefault();
+      copyAsRichText();
+    }
+  });
+
+  // Initial render with example so the app doesn't look empty
+  input.value = EXAMPLE;
+  render();
+</script>
+</body>
+</html>
