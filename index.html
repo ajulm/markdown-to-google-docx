@@ -510,12 +510,42 @@ def compute_payout(seller, period):
       c.style.color = '#1f2328';
     });
 
-    // Blockquotes
+    // Blockquotes — Docs strips border-left on a <blockquote>, so the GitHub
+    // accent bar vanishes. A TABLE CELL is the one construct Docs fills
+    // edge-to-edge, so render the bar as a narrow colored left cell and the
+    // quote text in a right cell. border-collapse:collapse + cellspacing 0
+    // keeps the bar flush against the text.
     root.querySelectorAll('blockquote').forEach(b => {
-      b.style.borderLeft = '.25em solid #d0d7de';
-      b.style.padding = '0 1em';
-      b.style.margin = '8px 0';
-      b.style.color = '#59636e';
+      // Zero the inner paragraph margins — Docs gives each <p> default spacing,
+      // which stretches the cell taller than the text.
+      b.querySelectorAll('p').forEach(p => {
+        p.style.margin = '0';
+        p.style.lineHeight = '1.2';
+      });
+      const inner = b.innerHTML;
+      const barStyle = [
+        'background:#d0d7de',
+        'width:2px',
+        'padding:0',
+        'border:0',
+      ].join(';');
+      const textStyle = [
+        'padding:0 0 0 8px',
+        'border:0',
+        'color:#59636e',
+        'font-size:11pt',
+      ].join(';');
+
+      const table = document.createElement('table');
+      table.setAttribute('border', '0');
+      table.setAttribute('cellspacing', '0');
+      table.style.borderCollapse = 'collapse';
+      table.style.width = '100%';
+      table.style.margin = '8px 0';
+      table.innerHTML =
+        `<tbody><tr><td style="${barStyle}"></td>` +
+        `<td style="${textStyle}">${inner}</td></tr></tbody>`;
+      b.replaceWith(table);
     });
 
     // Links
@@ -645,6 +675,25 @@ def compute_payout(seller, period):
       copyAsRichText();
     }
   });
+
+  // -- Synced scrolling ----
+  // Drive the two panes off the same scroll fraction. A guard flag stops the
+  // programmatic scrollTop write from re-firing the other pane's listener,
+  // which would otherwise ping-pong and fight the user's scroll.
+  let syncing = false;
+  function linkScroll(from, to) {
+    from.addEventListener('scroll', () => {
+      if (syncing) return;
+      syncing = true;
+      const max = from.scrollHeight - from.clientHeight;
+      const frac = max > 0 ? from.scrollTop / max : 0;
+      to.scrollTop = frac * (to.scrollHeight - to.clientHeight);
+      // Release after this frame so the echoed 'scroll' event is ignored.
+      requestAnimationFrame(() => { syncing = false; });
+    });
+  }
+  linkScroll(input, preview);
+  linkScroll(preview, input);
 
   // Initial render with example so the app doesn't look empty
   input.value = EXAMPLE;
