@@ -64,10 +64,31 @@
     line-height: 1;
     letter-spacing: -0.01em;
     margin: 0;
+    /* Animated warm gradient ink fill. Clipped to the glyphs; the arrow <em>
+       overrides its own fill below so it stays solid accent. */
+    background: linear-gradient(100deg, var(--ink) 0%, var(--ink) 35%, var(--accent) 55%, var(--ink-soft) 75%, var(--ink) 100%);
+    background-size: 220% 100%;
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+    color: transparent;
+    animation: shimmer 9s ease-in-out infinite;
+  }
+  @keyframes shimmer {
+    0%, 100% { background-position: 0% 50%; }
+    50%      { background-position: 100% 50%; }
   }
   .brand h1 em {
-    font-style: italic;
+    font-style: normal;
+    -webkit-text-fill-color: var(--accent);
     color: var(--accent);
+    display: inline-block;
+    /* Arrow glides forward + back, drawing the eye toward "Google Docs". */
+    animation: arrowGlide 2.6s ease-in-out infinite;
+  }
+  @keyframes arrowGlide {
+    0%, 100% { transform: translateX(0); }
+    50%      { transform: translateX(8px); }
   }
   .brand .tag {
     font-family: 'JetBrains Mono', monospace;
@@ -76,6 +97,20 @@
     text-transform: uppercase;
     color: var(--muted);
     margin-top: 10px;
+  }
+  /* Tagline words fade up in sequence (spans injected by JS). */
+  .brand .tag .w {
+    display: inline-block;
+    opacity: 0;
+    transform: translateY(6px);
+    animation: wordIn .5s ease forwards;
+  }
+  @keyframes wordIn {
+    to { opacity: 1; transform: none; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .brand h1, .brand h1 em, .brand .tag .w { animation: none; }
+    .brand .tag .w { opacity: 1; transform: none; }
   }
   .toolbar {
     display: flex;
@@ -93,10 +128,15 @@
     background: transparent;
     color: var(--ink);
     cursor: pointer;
-    transition: background .18s ease, color .18s ease, transform .12s ease;
+    transition: background .18s ease, color .18s ease, transform .14s ease, box-shadow .18s ease;
   }
-  button:hover { background: var(--ink); color: var(--paper); }
-  button:active { transform: translateY(1px); }
+  button:hover {
+    background: var(--ink);
+    color: var(--paper);
+    transform: translateY(-2px);
+    box-shadow: 0 6px 16px -8px rgba(30,26,23,.5);
+  }
+  button:active { transform: translateY(0); box-shadow: none; }
   button.primary {
     background: var(--ink);
     color: var(--paper);
@@ -694,6 +734,23 @@ def compute_payout(seller, period):
   }
   linkScroll(input, preview);
   linkScroll(preview, input);
+
+  // Tagline: wrap each word in a staggered fade-up span.
+  const tagEl = document.querySelector('.brand .tag');
+  if (tagEl) {
+    const words = tagEl.textContent.split(/(\s+)/);
+    tagEl.textContent = '';
+    let i = 0;
+    words.forEach(tok => {
+      if (/^\s+$/.test(tok)) { tagEl.appendChild(document.createTextNode(tok)); return; }
+      const span = document.createElement('span');
+      span.className = 'w';
+      span.textContent = tok;
+      span.style.animationDelay = (0.25 + i * 0.06) + 's';
+      tagEl.appendChild(span);
+      i++;
+    });
+  }
 
   // Initial render with example so the app doesn't look empty
   input.value = EXAMPLE;
