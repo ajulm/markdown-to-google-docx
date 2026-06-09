@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://ajulm.github.io/markdown-to-google-docx/sitemap.xml
